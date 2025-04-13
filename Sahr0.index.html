@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لعبة خلية حروف</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f1e6f2; /* خلفية بنفسجية فاتحة */
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+
+        p {
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(5, 80px); /* جعل الخلايا مربعة */
+            grid-gap: 5px;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .cell {
+            position: relative;
+            width: 80px;
+            height: 80px;
+            background-color: #ffffff; /* خلفية بيضاء في البداية */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            cursor: pointer;
+            border: 4px solid #9b59b6; /* حواف بنفسجية */
+            transition: background-color 0.3s ease;
+            color: #9b59b6; /* لون الحروف بنفسجي */
+        }
+
+        .cell:hover {
+            background-color: rgba(0, 0, 0, 0.1);
+        }
+
+        button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #9b59b6;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background-color: #8e44ad;
+        }
+
+        .celebration {
+            margin-top: 20px;
+            font-size: 30px;
+            display: none;
+        }
+
+        .green-celebration {
+            color: #4CAF50;
+            font-size: 50px;
+            text-align: center;
+            display: none;
+        }
+
+        .orange-celebration {
+            color: #FF9800;
+            font-size: 50px;
+            text-align: center;
+            display: none;
+        }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            display: none;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .modal button {
+            background-color: #9b59b6;
+            color: #fff;
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 18px;
+        }
+
+        .modal button:hover {
+            background-color: #8e44ad;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>لعبة خلية حروف</h1>
+    <p>اضغط على الزر لتغيير الحروف بشكل دوري</p>
+
+    <div class="grid" id="grid"></div>
+
+    <button id="changeLettersBtn">تغيير الحروف</button>
+    <button id="winBtn">مبروك الفوز</button>
+
+    <!-- الاحتفالات -->
+    <div class="green-celebration">🎉 الفريق الأخضر فاز! 🎉</div>
+    <div class="orange-celebration">🎉 الفريق البرتقالي فاز! 🎉</div>
+
+    <!-- نافذة الاختيار -->
+    <div class="modal" id="modal">
+        <div class="modal-content">
+            <h2>اختر الفريق الفائز:</h2>
+            <button id="greenTeamBtn">الفريق الأخضر</button>
+            <button id="orangeTeamBtn">الفريق البرتقالي</button>
+        </div>
+    </div>
+
+    <!-- إضافة أصوات -->
+    <audio id="greenWinSound" src="green-win-sound.mp3" preload="auto"></audio>
+    <audio id="orangeWinSound" src="orange-win-sound.mp3" preload="auto"></audio>
+
+    <script>
+        const gridSize = 5;
+        const arabicLetters = ["ا", "ب", "ت", "ث", "ج", "ح", "خ", "د", "ذ", "ر", "ز", "س", "ش", "ص", "ض", "ط", "ظ", "ع", "غ", "ف", "ق", "ك", "ل", "م", "ن", "ه"];
+        const grid = document.getElementById('grid');
+        const changeLettersBtn = document.getElementById('changeLettersBtn');
+        const winBtn = document.getElementById('winBtn');
+        const modal = document.getElementById('modal');
+        const greenTeamBtn = document.getElementById('greenTeamBtn');
+        const orangeTeamBtn = document.getElementById('orangeTeamBtn');
+        const greenCelebration = document.querySelector('.green-celebration');
+        const orangeCelebration = document.querySelector('.orange-celebration');
+        const greenWinSound = document.getElementById('greenWinSound');
+        const orangeWinSound = document.getElementById('orangeWinSound');
+        const letterColors = [
+            'rgba(255, 235, 59, 0.7)', // أصفر فاتح شفاف
+            '#4CAF50', // أخضر
+            '#FF9800', // برتقالي
+            '#FFFFFF'  // أبيض
+        ];
+
+        let currentColorIndex = 0; // مؤشر اللون الحالي
+        let letters = [];
+
+        function generateGrid() {
+            let shuffledLetters = shuffleArray([...arabicLetters]); // خلط الحروف
+
+            // إنشاء الحروف الأولية في الشبكة
+            for (let i = 0; i < gridSize * gridSize; i++) {
+                const cell = document.createElement('div');
+                cell.classList.add('cell');
+                cell.textContent = shuffledLetters[i]; // وضع الحرف في الخلية
+                cell.addEventListener('click', changeColor); // إضافة حدث الضغط لتغيير اللون
+                grid.appendChild(cell);
+                letters.push(cell);
+            }
+        }
+
+        function shuffleArray(array) {
+            // خلط الحروف عشوائيًا
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]]; // تبديل العناصر
+            }
+            return array;
+        }
+
+        function changeColor(event) {
+            // تغيير اللون عند الضغط على كل حرف بشكل مستقل
+            const cell = event.target;
+            // الحصول على اللون التالي بشكل دوري
+            currentColorIndex = (currentColorIndex + 1) % letterColors.length;
+            cell.style.backgroundColor = letterColors[currentColorIndex];
+        }
+
+        function updateGrid() {
+            let shuffledLetters = shuffleArray([...arabicLetters]); // خلط الحروف مرة أخرى
+            for (let i = 0; i < letters.length; i++) {
+                letters[i].textContent = shuffledLetters[i % arabicLetters.length]; // تغيير الحرف في الخلية
+                letters[i].style.backgroundColor = '#ffffff'; // إعادة الخلايا إلى اللون الأبيض
+            }
+            greenCelebration.style.display = 'none'; // إخفاء كلمة "مبروك" عند تغيير الحروف
+            orangeCelebration.style.display = 'none'; // إخفاء كلمة "مبروك" عند تغيير الحروف
+            greenWinSound.pause(); // إيقاف الصوت عند تغيير الحروف
+            greenWinSound.currentTime = 0;
+            orangeWinSound.pause(); // إيقاف الصوت عند تغيير الحروف
+            orangeWinSound.currentTime = 0;
+        }
+
+        function showCelebration(team) {
+            if (team === 'green') {
+                greenCelebration.style.display = 'block';
+                orangeCelebration.style.display = 'none';
+                greenWinSound.play(); // تشغيل صوت الفريق الأخضر
+            } else {
+                greenCelebration.style.display = 'none';
+                orangeCelebration.style.display = 'block';
+                orangeWinSound.play(); // تشغيل صوت الفريق البرتقالي
+            }
+        }
+
+        changeLettersBtn.addEventListener('click', updateGrid); // تغيير الحروف عند النقر على الزر
+
+        winBtn.addEventListener('click', () => {
+            modal.style.display = 'flex'; // عرض نافذة الاختيار
+        });
+
+        greenTeamBtn.addEventListener('click', () => {
+            showCelebration('green'); // عرض احتفال الفريق الأخضر
+            modal.style.display = 'none'; // إخفاء نافذة الاختيار
+        });
+
+        orangeTeamBtn.addEventListener('click', () => {
+            showCelebration('orange'); // عرض احتفال الفريق البرتقالي
+            modal.style.display = 'none'; // إخفاء نافذة الاختيار
+        });
+
+        generateGrid(); // إنشاء الشبكة عند تحميل الصفحة
+    </script>
+
+</body>
+</html>
